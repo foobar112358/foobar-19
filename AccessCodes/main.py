@@ -31,51 +31,68 @@ def answer(l):
     # a=b<c: b exists in dupPairs
     # a<b=c: b exists in distPairCounts; scan for c%b, add b to dupPairsScanned
     # a<b<c: b exists in distPairCounts; scan for c%b, c!=b
-    distPairs = []
+
+    # Get the duplicate pairs, duplicate triples (a=b=c), and, for each b,
+    # count for all a such that b % a (which we jam into distPairCounts).
     dupTriples = {}
     dupPairs = {}
+    elemCount = defaultdict(int)
+    for i in range(len(l)):
+        elemCount[l[i]] += 1
+        if elemCount[l[i]] >= 2:
+            dupPairs[l[i]] = 1
+            if elemCount[l[i]] >= 3:
+                dupTriples[l[i]] = 1
 
-    for i in range(len(l)-1):
-        for j in range(i+1, len(l)):
-            if l[j] % l[i] == 0:
-                if l[j] == l[i]:
-                    # Catch triples:
-                    if (i > 0 and l[i-1] == l[i]) or (j < len(l)-1 and l[j] == l[j+1]):
-                        dupTriples[l[j]] = 1
-                    # Catch pairs; this will fire at least once even when there are triples.
-                    else:
-                        dupPairs[l[j]] = 1
-                else:
-                    # Add this pair exactly once: watch out for dups.
-                    if (i == 0 or l[i-1] != l[i]) and (j == len(l)-1 or l[j+1] != l[j]):
-                        distPairs.append([l[i], l[j]])
-
-    # Total triples; we have one triple for every element in dupTriples (a=b=c)
+    # One triple for every duplicate triple (e.g., [1,1,1]). Count it once
+    # even if the number shows up more than three times (e.g., count [1,1,1,1,1] 
+    # as 1 triple).
     totalTriples = len(dupTriples)
 
-    # Scanning for a<b=c and a=b<c:
-    for i in range(0, len(l)):
-        if i == 0 or l[i] != l[i-1]:
-            for dp in dupPairs:
-                if dp != l[i]:
-                    if dp % l[i] == 0: 
-                        totalTriples += 1
-                    elif l[i] % dp == 0:
-                        totalTriples += 1
+    # Get distinct pairs; record the count for the higher number, as we can't 
+    # afford to count pairs.
+    distPairCounts = defaultdict(int)
+    distinctNums = sorted(list(set(l)))
+    for i in range(len(distinctNums)-1):
+        for j in range(i+1, len(distinctNums)):
+            if distinctNums[j] != distinctNums[i] and distinctNums[j] % distinctNums[i] == 0:
+                distPairCounts[distinctNums[j]] += 1
 
-    # We're checking for a<b<c. 
-    # TODO: Consider reversing the loop order with some indexing (so that we can skip
-    # cases where l[i] < lj).
-    for i in range(2, len(l)):
-        for dp in distPairs:
-            if l[i] % dp[1] == 0 and l[i] != dp[0] and l[i] != dp[1]:
-                totalTriples += 1
+    # Count the pairs: a<b=c and a=b<c.
+    # Then count the distinct triples: a<b<c
+    for i in range(len(distinctNums)):
+        for dp in dupPairs:
+            if distinctNums[i] != dp:
+                if distinctNums[i] % dp == 0:
+                    totalTriples += 1
+                elif dp % distinctNums[i] == 0:
+                    totalTriples += 1
+        
+        for d in distPairCounts:
+            if distinctNums[i] > d and distinctNums[i] % d == 0:
+                totalTriples += distPairCounts[d]
 
     return totalTriples
 
-print answer([1,1,1])        # Should be 1
-print answer([1,2,3,4,5,6])  # Should be 3
-print answer([1,1,1,2,2,2])  # Should be 4
+def check(l):
+    a = answer(l)
+    b = actualAnswer(l)
+    if a != b:
+        print "Got %d for answer, which should be %d for %s" % (a,b,l)
+    else:
+        print "%d: %s" % (a,l)
+    
+#check([1,1,1])        # Should be 1
+#check([1,2,3,4,5,6])  # Should be 3
+#check([1,1,1,2,2,2])  # Should be 4
+#check([1,1,1,1,2])    # Should be 2
+#check([1,2,3,4,6,9,12,16,18,24,27,32,36])  # ???
+#check([1,3,5])
+#check([1,2])
+#check([1,2,4,8])  # 4
+check([1,1,1,2,4,8])    # 8: 1,1,1  1,1,2  1,1,4  1,1,8  1,2,4  1,2,8  1,4,8  2,4,8
+check([1,1,1,2,2,2,3,3,3,4])  # 10: 1,1,1  2,2,2  3,3,3  1,1,2  1,2,2  1,1,3  1,3,3  1,1,4  1,2,4  2,2,4
+check([1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2])  # Should be 4: 1,1,1  1,1,2  1,2,2  2,2,2
 #print answer([1,2,3,3,4,5,6]) # Should be 4
 #print answer([1,2,3,3,3,4,5,6]) # Should be 5
 
